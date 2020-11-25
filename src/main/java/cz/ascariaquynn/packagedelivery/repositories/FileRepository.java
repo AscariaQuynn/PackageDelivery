@@ -1,10 +1,13 @@
 package cz.ascariaquynn.packagedelivery.repositories;
 
+import org.springframework.stereotype.Repository;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
+@Repository
 public class FileRepository {
 
     /**

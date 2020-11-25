@@ -62,7 +62,7 @@ public class UiController {
                 "You can add packages and optionally see fees calculated for them.",
                 "Once every minute, interim results will be printed to the terminal.",
                 StringUtils.EMPTY,
-                "Commands: print, exit",
+                "Commands: print, quit",
                 StringUtils.EMPTY);
 
         printInterimResults();

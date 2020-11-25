@@ -90,7 +90,7 @@ public class UiController {
             }
         }
 
-        Application.exit("Bye!");
+        Application.exit("Thank you, and stay healthy!");
     }
 
     private void printInterimResults() {

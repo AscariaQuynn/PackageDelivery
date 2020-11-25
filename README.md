@@ -30,14 +30,27 @@ App that keeps record of packages processed. Each package info consist of weight
   - so final command could be: java -jar target/package-delivery-1.0-SNAPSHOT.jar --p=InitialPackages.pdpackages --f=Fees.pdfees
 
 #### Inside the app
-- so app is running, welcome text appeared, you can start using app by typing your favorite weight and postcode
+- so app is running, welcome text "Welcome to the PackageDelivery app!" appeared, you can start using app by typing your favorite weight and postcode
 - type "15.8 12345" and hit enter, you can see that app informed you your data was added
+- when invalid input is given, app will tell you about it and how to type correct one
 - every minute, packages are automatically printed into the terminal/command line
-- if you dont want to wait, type "print" and hit enter
+- if you don't want to wait, type "print" and hit enter
 - exit application with "quit" command
 
 ## App output
 - while printing interim results from memory, all packages added with same post code will
 be transformed into one interim result with weights added together and if Fees file was used,
 then associated fees will be added to interim results
- 
+
+example Fees.pdfees file
+```
+weight   price
+10       5.00
+5        2.50
+3        2.00
+2        1.50
+1        1.00
+0.5      0.70
+0.2      0.50
+0        0.00
+ ```

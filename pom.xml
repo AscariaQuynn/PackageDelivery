@@ -29,13 +29,13 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <packagedelivery.options.packages.file>${project.basedir}/InitialPackages.pdpackages</packagedelivery.options.packages.file>
+                <packagedelivery.options.packages.file>--p=${project.basedir}/InitialPackages.pdpackages</packagedelivery.options.packages.file>
             </properties>
         </profile>
         <profile>
             <id>_test-feesFiles</id>
             <properties>
-                <packagedelivery.options.fees.file>${project.basedir}/Fees.pdfees</packagedelivery.options.fees.file>
+                <packagedelivery.options.fees.file>--f=${project.basedir}/Fees.pdfees</packagedelivery.options.fees.file>
             </properties>
         </profile>
     </profiles>
@@ -61,10 +61,29 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.11</version>
         </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>2.15.0</version>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.1</version>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -73,8 +92,8 @@
                     <executable>true</executable>
                     <mainClass>cz.ascariaquynn.packagedelivery.Application</mainClass>
                     <arguments>
-                        <argument>--p=${packagedelivery.options.packages.file}</argument>
-                        <argument>--f=${packagedelivery.options.fees.file}</argument>
+                        <argument>${packagedelivery.options.packages.file}</argument>
+                        <argument>${packagedelivery.options.fees.file}</argument>
                     </arguments>
                 </configuration>
             </plugin>

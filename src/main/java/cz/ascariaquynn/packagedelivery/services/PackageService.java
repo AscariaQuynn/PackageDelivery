@@ -1,25 +1,26 @@
 package cz.ascariaquynn.packagedelivery.services;
 
 import cz.ascariaquynn.packagedelivery.config.AppOption;
-import cz.ascariaquynn.packagedelivery.config.AppOptionMissingException;
 import cz.ascariaquynn.packagedelivery.config.AppOptions;
+import cz.ascariaquynn.packagedelivery.config.exceptions.AppOptionMissingException;
 import cz.ascariaquynn.packagedelivery.model.InterimPackage;
 import cz.ascariaquynn.packagedelivery.model.Package;
+import cz.ascariaquynn.packagedelivery.repositories.FileRepository;
+import cz.ascariaquynn.packagedelivery.services.events.RegisterHelpEvent;
 import cz.ascariaquynn.packagedelivery.services.exceptions.PackageServiceException;
-import cz.ascariaquynn.packagedelivery.services.ui.HelpService;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -33,10 +34,10 @@ public class PackageService {
     private static final Logger logger = LogManager.getLogger(PackageService.class);
 
     @Autowired
-    private KillService killService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Autowired
-    private HelpService helpService;
+    private FileRepository fileRepository;
 
     @Autowired
     private FeeService feeService;
@@ -51,14 +52,22 @@ public class PackageService {
 
     private Pattern pattern;
 
-    private boolean packagesLoaded = false;
+    private boolean packagesLoaded;
 
     @PostConstruct
     public void init() {
         logger.debug("Initializing...");
-        helpService.addOption(appOption);
+        packages.clear();
         pattern = Pattern.compile(appOption.getInputRegex());
+        packagesLoaded = false;
+    }
 
+    @EventListener(RegisterHelpEvent.class)
+    public void registerHelp(RegisterHelpEvent event) {
+        event.registerHelp(appOption);
+    }
+
+    public void ensureLoaded() {
         loadPackages();
     }
 
@@ -69,18 +78,23 @@ public class PackageService {
         packagesLoaded = true;
 
         if (!appOptions.hasOption(appOption)) {
-            killService.kill(new AppOptionMissingException("Option 'Packages' is required."), 1);
+            throw new AppOptionMissingException("Option 'Packages' is required.");
         }
 
         String packagesFilePath = appOptions.getOptionValue(appOption);
+        if (StringUtils.isEmpty(packagesFilePath)) {
+            throw new PackageServiceException("Packages File could not be loaded.");
+        }
+
+
         logger.info("reading: " + packagesFilePath);
         try {
-            Files.lines(Paths.get(packagesFilePath)).forEach(s -> addCandidate(s));
+            fileRepository.loadLines(packagesFilePath).forEach(s -> addCandidate(s));
             logger.info("Added " + packages.size() + " packages.");
         } catch (NoSuchFileException e) {
-            killService.kill(new PackageServiceException("Specified file '" + e.getFile() + "' does not exist.", e), 1);
+            throw new PackageServiceException("Packages File does not exist.", e);
         } catch (Exception e) {
-            killService.kill(new PackageServiceException(e), 1);
+            throw new PackageServiceException(e);
         }
     }
 
@@ -97,7 +111,16 @@ public class PackageService {
         packages.add(aPackage);
     }
 
+    /**
+     * Tries to add new package based on input text.
+     * @param inputText
+     * @return
+     * @throws NullPointerException when input text is null
+     */
     public boolean addCandidate(String inputText) {
+        if(null == inputText) {
+            throw new NullPointerException();
+        }
         loadPackages();
         Matcher matcher = pattern.matcher(inputText);
         boolean matchFound = matcher.find();
@@ -110,6 +133,7 @@ public class PackageService {
     }
 
     public Set<InterimPackage> getInterimResults() {
+        loadPackages();
         HashMap<String, InterimPackage> interimPackages = new HashMap<>();
         for(Package aPackage : packages) {
             InterimPackage interimPackage = interimPackages.get(aPackage.getPostCode());
@@ -119,12 +143,7 @@ public class PackageService {
             interimPackage.merge(aPackage);
         }
 
-        TreeSet<InterimPackage> sorted = new TreeSet<>(new Comparator<InterimPackage>() {
-            @Override
-            public int compare(InterimPackage o1, InterimPackage o2) {
-                return o2.getWeight().compareTo(o1.getWeight());
-            }
-        });
+        TreeSet<InterimPackage> sorted = new TreeSet<>((o1, o2) -> o2.getWeight().compareTo(o1.getWeight()));
         for(InterimPackage interimPackage : interimPackages.values()) {
             sorted.add(interimPackage);
         }

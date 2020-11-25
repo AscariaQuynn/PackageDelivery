@@ -1,7 +1,7 @@
-package cz.ascariaquynn.packagedelivery.services.ui;
+package cz.ascariaquynn.packagedelivery.controllers;
 
+import cz.ascariaquynn.packagedelivery.Application;
 import cz.ascariaquynn.packagedelivery.model.InterimPackage;
-import cz.ascariaquynn.packagedelivery.services.KillService;
 import cz.ascariaquynn.packagedelivery.services.PackageService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -10,32 +10,36 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Controller;
 
 import javax.annotation.PostConstruct;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 
-@Service
-public class UiService {
+@Controller
+public class UiController {
 
-    private static final Logger logger = LogManager.getLogger(UiService.class);
-
-    private static final String EXIT_COMMAND = "quit";
-
-    private static final int PRINT_INTERIM_DELAY = 60 * 1000;
+    private static final Logger logger = LogManager.getLogger(UiController.class);
 
     @Value("${spring.application.name}")
     private String applicationName;
 
-    @Autowired
-    private ThreadPoolTaskExecutor asyncExecutor;
+    @Value("${packagedelivery.interimDelay}")
+    private int printInterimDelay;
 
-    @Autowired
-    private KillService killService;
+    @Value("${packagedelivery.exitCommand}")
+    private String exitCommand;
+
+    @Value("${packagedelivery.printCommand}")
+    private String printCommand;
 
     @Autowired
     private PackageService packageService;
+
+    @Autowired
+    private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
     private Scanner scanner;
 
@@ -49,13 +53,16 @@ public class UiService {
 
     public void run() {
         logger.debug("Running UI...");
+        packageService.ensureLoaded();
         runThreadPrintingInterimResults();
 
         say("Welcome to the " + applicationName + " app!",
                 StringUtils.EMPTY,
                 "This app will guide you through managing packages. ",
-                "You can add packages and optionally see model calculated for them.",
-                "Once every minute, data will be printed to the terminal.",
+                "You can add packages and optionally see fees calculated for them.",
+                "Once every minute, interim results will be printed to the terminal.",
+                StringUtils.EMPTY,
+                "Commands: print, exit",
                 StringUtils.EMPTY);
 
         printInterimResults();
@@ -64,8 +71,13 @@ public class UiService {
             // Read user input
             String inputText = ask("Enter weight and postcode:");
 
-            if(EXIT_COMMAND.equalsIgnoreCase(inputText)) {
+            if(exitCommand.equalsIgnoreCase(inputText)) {
                 break;
+            }
+
+            if(printCommand.equalsIgnoreCase(inputText)) {
+                printInterimResults();
+                continue;
             }
 
             if(packageService.addCandidate(inputText)) {
@@ -78,23 +90,24 @@ public class UiService {
             }
         }
 
-        say("Bye!");
-        killService.exitGracefully();
+        Application.exit("Bye!");
     }
 
     private void printInterimResults() {
         Set<InterimPackage> interimResults = packageService.getInterimResults();
-        say("Printing interim results:");
-        say(interimResults.toArray(new InterimPackage[0]));
-        say(StringUtils.EMPTY);
+        List<Object> saying = new LinkedList<>();
+        saying.add("Printing interim results:");
+        saying.addAll(interimResults);
+        saying.add(StringUtils.EMPTY);
+        say(saying.toArray(new Object[0]));
     }
 
     @Async
     public void runThreadPrintingInterimResults() {
-        asyncExecutor.execute(() -> {
+        threadPoolTaskExecutor.execute(() -> {
             try {
                 while (true) {
-                    Thread.sleep(PRINT_INTERIM_DELAY);
+                    Thread.sleep(printInterimDelay);
                     printInterimResults();
                 }
             } catch (InterruptedException e) {
@@ -116,6 +129,11 @@ public class UiService {
         return inputText;
     }
 
+    /**
+     * Prints text to the terminal. In case of active asking for user input, this method will try to insert
+     * text before question and then will reprint that question. Unfortunately this erases what user typed.
+     * @param text
+     */
     public void say(Object... text) {
         if(null != asking) {
             // Go back X lines
@@ -132,6 +150,20 @@ public class UiService {
             for(Object line : text) {
                 System.out.println(line);
             }
+        }
+    }
+
+    /**
+     * Prints text and closes scanner. Because this method expects app to be killed, this class becomes unusable for UI services.
+     * @param text
+     */
+    public void killSay(Object... text) {
+        if(null != asking) {
+            scanner.close();
+            System.out.println(StringUtils.EMPTY);
+        }
+        for(Object line : text) {
+            System.out.println(line);
         }
     }
 }

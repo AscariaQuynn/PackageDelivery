@@ -2,20 +2,20 @@ package cz.ascariaquynn.packagedelivery.services;
 
 import cz.ascariaquynn.packagedelivery.config.AppOption;
 import cz.ascariaquynn.packagedelivery.config.AppOptions;
+import cz.ascariaquynn.packagedelivery.repositories.FileRepository;
+import cz.ascariaquynn.packagedelivery.services.events.RegisterHelpEvent;
 import cz.ascariaquynn.packagedelivery.services.exceptions.FeeServiceException;
-import cz.ascariaquynn.packagedelivery.services.ui.HelpService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -27,10 +27,7 @@ public class FeeService {
     private static final Logger logger = LogManager.getLogger(FeeService.class);
 
     @Autowired
-    private KillService killService;
-
-    @Autowired
-    private HelpService helpService;
+    private FileRepository fileRepository;
 
     @Autowired
     private AppOptions appOptions;
@@ -47,10 +44,12 @@ public class FeeService {
     @PostConstruct
     public void init() {
         logger.debug("Initializing...");
-        helpService.addOption(appOption);
         pattern = Pattern.compile(appOption.getInputRegex());
+    }
 
-        loadFees();
+    @EventListener(RegisterHelpEvent.class)
+    public void registerHelp(RegisterHelpEvent event) {
+        event.registerHelp(appOption);
     }
 
     private void loadFees() {
@@ -60,7 +59,7 @@ public class FeeService {
         feesLoaded = true;
 
         if (!appOptions.hasOption(appOption)) {
-            logger.info("Missing option for model file. Initialization interrupted as Fees are not required option.");
+            logger.info("Missing option for Fees file. Initialization interrupted as Fees are not required option.");
             return;
         }
 
@@ -72,28 +71,39 @@ public class FeeService {
 
         logger.info("reading: " + feesFilePath);
         try {
-            Files.lines(Paths.get(feesFilePath)).forEach(s -> {
-                logger.info(s);
-
-                Matcher matcher = pattern.matcher(s);
-                boolean matchFound = matcher.find();
-                if (matchFound) {
-                    BigDecimal weight = new BigDecimal(matcher.group(1));
-                    BigDecimal fee = new BigDecimal(matcher.group(2));
-                    addFee(weight, fee);
-                }
-                feesLoaded = true;
-            });
+            fileRepository.loadLines(feesFilePath).forEach(s -> addCandidate(s));
+            logger.info("Added " + fees.size() + " fees.");
         } catch (NoSuchFileException e) {
-            killService.kill(new FeeServiceException("Specified file '" + e.getFile() + "' does not exist.", e), 1);
+            throw new FeeServiceException("Fees File does not exist.", e);
         } catch (Exception e) {
-            killService.kill(new FeeServiceException(e), 1);
+            throw new FeeServiceException(e);
         }
     }
 
     public void addFee(BigDecimal weight, BigDecimal fee) {
         loadFees();
         fees.put(weight, fee);
+    }
+
+    /**
+     * Tries to add new fee based on input text.
+     * @param inputText
+     * @return
+     * @throws NullPointerException when input text is null
+     */
+    public boolean addCandidate(String inputText) {
+        if(null == inputText) {
+            throw new NullPointerException();
+        }
+        loadFees();
+        Matcher matcher = pattern.matcher(inputText);
+        boolean matchFound = matcher.find();
+        if(matchFound) {
+            BigDecimal weight = new BigDecimal(matcher.group(1));
+            BigDecimal fee = new BigDecimal(matcher.group(2));
+            addFee(weight, fee);
+        }
+        return matchFound;
     }
 
     public boolean hasFees() {

@@ -1,6 +1,7 @@
 package cz.ascariaquynn.packagedelivery.model;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public class InterimPackage {
 
@@ -38,6 +39,21 @@ public class InterimPackage {
 
     public String getPrintableFormatted() {
         return postCode + " " + weight.setScale(3) + (fee != null ? " " + fee.setScale(3) : "");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        InterimPackage that = (InterimPackage) o;
+        return postCode.equals(that.postCode) &&
+                weight.equals(that.weight) &&
+                Objects.equals(fee, that.fee);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(postCode, weight, fee);
     }
 
     @Override

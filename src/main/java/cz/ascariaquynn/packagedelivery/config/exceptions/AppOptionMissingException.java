@@ -1,4 +1,4 @@
-package cz.ascariaquynn.packagedelivery.config;
+package cz.ascariaquynn.packagedelivery.config.exceptions;
 
 public class AppOptionMissingException extends RuntimeException {
 

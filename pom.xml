@@ -12,6 +12,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.compiler.source>1.8</maven.compiler.source>
 
+        <!-- defaults are empty, filled in profiles -->
         <packagedelivery.options.packages.file></packagedelivery.options.packages.file>
         <packagedelivery.options.fees.file></packagedelivery.options.fees.file>
     </properties>
@@ -29,13 +30,13 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <packagedelivery.options.packages.file>--p=${project.basedir}/InitialPackages.pdpackages</packagedelivery.options.packages.file>
+                <packagedelivery.options.packages.file>--p=${project.basedir}/InitialPackages.pack</packagedelivery.options.packages.file>
             </properties>
         </profile>
         <profile>
             <id>_test-feesFiles</id>
             <properties>
-                <packagedelivery.options.fees.file>--f=${project.basedir}/Fees.pdfees</packagedelivery.options.fees.file>
+                <packagedelivery.options.fees.file>--f=${project.basedir}/Fees.fee</packagedelivery.options.fees.file>
             </properties>
         </profile>
     </profiles>
